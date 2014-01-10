@@ -1,7 +1,13 @@
 /**
- * Created by Aibek on 11/20/13.
+ * Created by Everyone
  */
 
+/**
+ *  This module was created as a separate project on the Princeton Hackaton 2013, we include the code here,
+ *  but the actual demonstration can be reached by this link: http://ec2-54-234-58-212.compute-1.amazonaws.com/?#
+ *  Since it wasn't our initial goal, we didn't integrate it in our main 3Dwe project.
+ *
+ */
 var EXPLORER = new EXPLORER();
 
 function EXPLORER() {
@@ -72,7 +78,7 @@ function EXPLORER() {
 
     var files = new Array();
     var FID = 0;
-    var home = "/home";
+    var home = "/Home";
     var currentDepth = 0;
     var currentFolder = {};
 

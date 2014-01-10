@@ -1,35 +1,40 @@
 /**
- * Created by Aibek on 11/24/13.
+ * Created by Swetal Bhatt 11/24/13.
+ * Contributors: Aibek Sarbayev (retrieving songs list)
  */
 
 var JUKEBOX = new JUKEBOX();
 
 function JUKEBOX() {
+    // Utilize singleton property
     if ( arguments.callee._singletonInstance )
         return arguments.callee._singletonInstance;
     arguments.callee._singletonInstance = this;
 
     // private variables
     var that = this;        // to reference JUKEBOX inside function that override 'this'
-    var radioBody, radioSeeker;
-    var radioPlay;
-    var radioVolume, radioPower;
-    var radioNext, radioPrev;
-    var radioReplay, radioShuffle;
 
-    var isPlaying = false;
-    var isReplaying = false;
-    var isShuffling = false;
+    // variables for the Jkekbox model parts
+    var radioBody, radioSeeker;         // body and rectangle that represents seeker
+    var radioPlay;                      // play button
+    var radioVolume, radioPower;        // volume knob and seeker knob (named power because use for knob may change in future)
+    var radioNext, radioPrev;           // next and prev buttons
+    var radioReplay, radioShuffle;      // replay and shuffle buttons
 
-    var vol_clicked = false;
-    var seek_clicked = false;
+    var isPlaying = false;              // state variable for when music is playing
+    var isReplaying = false;            // state variable for when music replay is on
+    var isShuffling = false;            // state variable for when music shuffle is on
+
+    var vol_clicked = false;            // condition variables to distinguish dragging
+    var seek_clicked = false;           // for seek and volume knobs
 
     var dragging, prevDrag;
     var windowHalfX, windowHalfY;
-    var currentVolume;
-    var currentSeek;
 
-    this.currentSongID = 3;
+    var currentVolume;                  // variable for saving the volume
+    var currentSeek;                    // variable for saving the current time
+
+    this.currentSongID = 3;             // variable for keeping track of the current song
 
     var floor;
     var light, pointLight;
@@ -40,10 +45,12 @@ function JUKEBOX() {
     this.songs = [];
 
     this.isLoaded = false;
+    // object group for transforming the jukebox in the room scene
     this.group = new THREE.Object3D();
 
     this.request = {LOADSONGS : 'loadSongs'};
 
+    // function for initializing the elements from jukebox scene
     this.load = function ()
     {
         initGeometry();
@@ -54,7 +61,7 @@ function JUKEBOX() {
 
         tryLoadSongs();
 
-        //initial audio tag initialization and generation:
+        //initialization to generate the audio html tag:
         var audio_html = '<audio controls id="audio" onended="JUKEBOX.autoNext()"><source id="change_audio" src="' + this.songs[this.currentSongID] + '" type="audio/mpeg"><embed height="50" width="100" src="' + this.songs[this.currentSongID] + '"></audio>' ;
         document.getElementById("test_audio").innerHTML = audio_html;
         document.getElementById('audio').volume = 0.5;
@@ -68,6 +75,7 @@ function JUKEBOX() {
         this.isLoaded = true;
     }
 
+    // send request to socket.io to load songs
     function tryLoadSongs()
     {
         if (socketBusy)
@@ -79,9 +87,9 @@ function JUKEBOX() {
         {
             socketBusy = true;
             specialRequest = that.request.LOADSONGS;
-            currentDirectory = '/home';
-            openDir('Jukebox');
-            // after this this.songs contains filenames of songs in /home/Jukebox
+            currentDirectory = '/Home';
+            openDir('Music');
+            // after this this.songs contains filenames of songs in /Home/Music
         }
     }
 
@@ -89,7 +97,7 @@ function JUKEBOX() {
     {
         CORE.disposeSceneElements(modelElements);
 
-        navigate('/home');
+        navigate('/Home');
         isPlaying = false;
         this.isLoaded = false;
     }
@@ -97,7 +105,10 @@ function JUKEBOX() {
     this.onDocumentMouseDown = function(event){
         event.preventDefault();
 
+        // to keep track of which element is clicked
         var object;
+
+        // code for handling clicks
         var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
         CORE.projector.unprojectVector(vector, CORE.camera);
         var raycaster = new THREE.Raycaster(CORE.camera.position, vector.sub(CORE.camera.position).normalize());
@@ -107,17 +118,21 @@ function JUKEBOX() {
         if (intersects.length > 0) {
             object = intersects[ 0 ].object;
 
+            /*
+                This is where most of the jukebox logic is. It keeps track of the state of all of the buttons and
+                dynamically updates and html tag to play different songs. It uses javascript events and the DOM to
+                handle manipulations of the audio state.
+             */
+
             if (object === radioPlay)
             {
                 if (!isPlaying)
                 {
-//                    radioPlay.position.set(0,0,1.5);
                     pushTheButton(radioPlay, true);
                     document.getElementById("audio").play();
                 }
                 else
                 {
-//                    radioPlay.position.set(0,0,0);
                     pushTheButton(radioPlay, false);
                     document.getElementById("audio").pause();
                 }
@@ -125,14 +140,12 @@ function JUKEBOX() {
             }
             if (object === radioNext)
             {
-//                radioNext.position.set(0,0,1.5);
                 pushTheButton(radioNext, true);
                 if(!isShuffling && !isReplaying) {
                     that.currentSongID = (that.songs.length + that.currentSongID + 1) % that.songs.length;
                     that.changeSong(that.songs[ that.currentSongID ]);
                 }
                 else if (isShuffling && !isReplaying){
-//                    that.shuffleNext();
                     that.currentSongID = Math.floor(Math.random()*that.songs.length);
                     that.changeSong(that.songs[ that.currentSongID ]);
                 }
@@ -146,14 +159,12 @@ function JUKEBOX() {
             }
             if (object === radioPrev)
             {
-//                radioPrev.position.set(0,0,1.5);
                 pushTheButton(radioPrev, true);
                 if (!isShuffling && !isReplaying) {
                     that.currentSongID = (that.songs.length + that.currentSongID - 1) % that.songs.length;
                     that.changeSong(that.songs[ that.currentSongID ]);
                 }
                 else if (isShuffling && !isReplaying) {
-//                    that.shufflePrev();
                     that.currentSongID = Math.floor(Math.random()*that.songs.length);
                     that.changeSong(that.songs[ that.currentSongID ]);
                 }
@@ -211,7 +222,7 @@ function JUKEBOX() {
         vol_clicked = false;
         seek_clicked = false;
         document.getElementById('audio').volume = currentVolume;
-
+            // variables and states are reset
     }
 
     this.onDocumentMouseOut = function(event){
@@ -221,7 +232,7 @@ function JUKEBOX() {
         vol_clicked = false;
         seek_clicked = false;
         document.getElementById('audio').volume = currentVolume;
-
+            // variables and states are reset
     }
 
     this.onDocumentMouseMove = function(event){
@@ -235,7 +246,6 @@ function JUKEBOX() {
             var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
             CORE.projector.unprojectVector(vector, CORE.camera);
             vector.sub(CORE.camera.position).normalize();
-//            vector.y = 0;
 
             var temp = new THREE.Vector3(0,0,0);
             temp.add(vector);
@@ -264,6 +274,7 @@ function JUKEBOX() {
 
     }
 
+    // handles when a song needs to change
     this.changeSong = function(filepath) {
         console.log('changing song: ' + filepath);
 
@@ -275,6 +286,7 @@ function JUKEBOX() {
             document.getElementById("audio").play();
     }
 
+    // handles when a song will change automatically due to the 'onended' event
     this.autoNext = function() {
         if (!isShuffling && !isReplaying){
             that.currentSongID = (that.songs.length + that.currentSongID + 1) % that.songs.length;
@@ -291,6 +303,8 @@ function JUKEBOX() {
         radioPower.rotation.z = 0;
 
     }
+
+    // a not yet implemented algorithm for shuffling songs.
 
 //    this.buildShuffledIndexArray = function(size) {
 //
@@ -349,6 +363,10 @@ function JUKEBOX() {
 //        }
 //    }
 
+    /*
+        initializes the jukebox model. Jukebox model parts are loaded from a separate js file with JSONLoader.
+        note: the knobs needed to be positioned manually to fix rotation bugs
+      */
     function initGeometry() {
         var loader = new THREE.JSONLoader();
         var callbackModel   = function( geometry, materials ) {
@@ -420,16 +438,17 @@ function JUKEBOX() {
         light.position.set(0, 200, -50);
         light.intensity = 2.0;
         light.castShadow = true;
-        CORE.scene.add(light);
-        modelElements.push(light);
+//        CORE.scene.add(light);
+//        modelElements.push(light);
 
         pointLight = new THREE.PointLight(0x661452, 4, 150);
         pointLight.position.set(-30,20,-40);
-        CORE.scene.add(pointLight);
+//        CORE.scene.add(pointLight);
         modelElements.push(pointLight);
         that.group.add(pointLight);
     }
 
+    // function for applying the transformation when play, ff, rw, shuff, or replay is pressed.
     function pushTheButton ( button, mode) {
         if (mode === true)
         {
@@ -444,6 +463,7 @@ function JUKEBOX() {
             button.position.z += Math.cos(button.rotation.y) * 1.5;
         }
     }
+    // function for applying the transformations when volume or seek knob are rotated (drag-clicked)
     function rotateTheButton ( button, mode ) {
         //mode: true:vol-up, false:vol-down
 //            button.position.set(Math.cos(button.rotation.y) * 1.5, 0, Math.sin(button.rotation.y) * 1.5);
@@ -456,6 +476,7 @@ function JUKEBOX() {
             if (seek_clicked) button.rotation.z += (2*Math.PI)/(document.getElementById('audio').duration/3);
         }
     }
+    // function for handling the volume change
     function setvolume (vol) {
         if ( (vol+document.getElementById('audio').volume) > 0 && (vol+document.getElementById('audio').volume) < 1 ) {
             currentVolume = document.getElementById('audio').volume += vol;
@@ -467,6 +488,7 @@ function JUKEBOX() {
             }
         }
     }
+    // function for handling the seeker change
     function setseek (seek) {
         if ( (seek+document.getElementById('audio').currentTime) > 0 && (seek+document.getElementById('audio').currentTime) < document.getElementById('audio').duration ) {
             currentSeek = document.getElementById('audio').currentTime += seek;
@@ -480,6 +502,7 @@ function JUKEBOX() {
         }
     }
 
+    // not yet implemented: audio lowers are you move farther from the jukebox
     this.update = function(){
         var d = Math.sqrt(Math.pow(CORE.camera.position.x, 2) +
             Math.pow(CORE.camera.position.y, 2) + Math.pow(CORE.camera.position.z, 2));

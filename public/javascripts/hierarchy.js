@@ -1,9 +1,14 @@
 /**
- * Created by Oscar on 11/9/13.
+ * Created by Sean on 11/9/13.
  */
 
 //display a fancy success/error message in the side menu which will fade in and out:
 var timer;
+/**
+ * display a success/error message in the side menu which will fade in and out:
+ * @param text the message that will be displayed
+ * @param errMessage true if displaying an error msg, which should be red
+ */
 var statusMessage = function(text, errMessage){
     var message = $('#message');
     message.html(text);
@@ -25,6 +30,9 @@ var statusMessage = function(text, errMessage){
     });
 }
 
+/**
+ * raised when the ser right clicks a node in the hierarchy in the top-left
+ */
 function rightClick(){
     $(".h_node").on('contextmenu', function(ev) {
         var that = this;
@@ -32,7 +40,7 @@ function rightClick(){
         menu.show();
         menu.css({top: event.pageY + "px", left: event.pageX + "px"});
         $(menu).click(function(){
-            if (that.id == "/home"){
+            if (that.id == "/Home"){
                 statusMessage("Cannot delete HOME", true);
                 return false;
             }

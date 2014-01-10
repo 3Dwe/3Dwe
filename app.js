@@ -1,3 +1,6 @@
+/**
+ * Uploading method by Peng, socket and fs logic by Sean
+ */
 
 /**
  * Module dependencies.
@@ -42,17 +45,65 @@ app.get ('/user/main'  , user.main);
 app.get ('/user/logout', user.logout);
 app.get('/user/add', user.user_add);
 
-//app.post('/uploadifyhandler', routes.uploadifyhandler);
-//uploadify deprecated
+/**
+ * returns the absolute path of the specified file or folder
+ * @param filename the name of the file or folder
+ * @returns {string} the absolute path
+ */
+function getPath(filename){         //function to get filepath
+    var path = String(filename);
+    path = path.replace(/\//g, '\\');
+    path = __dirname + "\\public" + path;   //_dirname with newly directed path
+    return path;
+}
 
-app.post('/uploadHandler', routes.uploadHandler); 
+app.post('/uploadHandler', function(req, res) {     //upload post method
+
+    var allPath = "/Home";      //filepath variable to store the uploaded files
+ 
+    var extension = req.files.userFile.name.split('.').pop();       //get extension
+
+    //get correct folder depend on type of file from their extensions
+    if (extension === 'mp3' || extension === 'MP3'){
+        allPath += '/Music/' + req.files.userFile.name;
+    }else if (extension === 'mp4' || extension === 'MOV' || extension === 'webm' || extension === 'wmv'){
+        allPath += '/Videos/' + req.files.userFile.name;
+    }else if (extension === 'pdf'){
+        allPath += '/PDFs/' + req.files.userFile.name;
+    }else if (extension === 'jpg' || extension === 'png' || extension === 'JPG' || extension === 'PNG'){
+        allPath += '/Photos/' + req.files.userFile.name;
+    }else if (extension === 'txt'){
+        console.log("no txt folder");
+    }
+
+    //fs method call for file namepath
+    require('fs').rename(
+        req.files.userFile.path,
+        getPath(allPath),
+        function(error) {       //error call 
+            if(error) {
+                res.send({
+                    error: 'Sorry, upload failed!'
+                });
+                return;
+            }
+
+            console.log("arrived here");        //print to console that upload success
+            res.send({
+                path: getPath(allPath)
+            });
+        }
+    );
+});
+
 
 var io = require('socket.io').listen(app.listen(app.get('port')));
 io.set('log level', 1);
 
 io.sockets.on('connection', function (socket) {
     console.log("Web Socket Connection Established");
-    //MAKE DIRECTORY
+
+    //make the directory
     socket.on('mkdir', function (data) {
         var path = getPath(data.dir);
         data.isError = false;
@@ -72,7 +123,8 @@ io.sockets.on('connection', function (socket) {
         //data.isDir = fs.statSync(path).isDirectory(); //determine if directory or file
         socket.emit('status', data);
     });
-    //SHOW DIRECTORY
+
+    //show the directory specified in the data object:
     socket.on('showdir', function(data){
         var path = getPath(data.dir);
         if (!file_exists(path)){
@@ -92,13 +144,8 @@ io.sockets.on('connection', function (socket) {
         data.isDir = isDir;
         io.sockets.emit('showfiles', data);
     });
-    function getPath(filename){
-        var path = String(filename);
-        path = path.replace(/\//g, '\\');
-        path = __dirname + "\\public" + path;
-        return path;
-    }
-    //DELETE FOLDER/FILE
+
+    //delete folder/file
     socket.on('deletedir', function(data){
         var path = getPath(data.dir);
         deleteFolder(path);
@@ -106,11 +153,14 @@ io.sockets.on('connection', function (socket) {
         data.status = "Deleted " + data.dir;
         socket.emit('status', data);
     });
-    //DOES FILE EXIST?
+
+    //returns whether a file/folder exists:
     function file_exists(file){
         return fs.existsSync(file);
     }
-    //DELETE FOLDER & CONTENTS
+
+    //delete folder & its contents recursively:
+    //TODO: Add a prompt
     function deleteFolder(path) {
         var files = [];
         if(file_exists(path)) {
@@ -127,41 +177,12 @@ io.sockets.on('connection', function (socket) {
         }
     };
 
-
-    // new stuff for 3D
-    socket.on('showdir3D', function(data){
-        var path = getPath(data.dir);
-        if (!file_exists(path)){
-            return;
-        }
-        if (!fs.lstatSync(path).isDirectory()){
-            return;
-        }
-
-        fs.readdir(path, function(err, files) {
-//            console.log("Reading: " + path);
-            if (err)
-            {
-                console.log(err);
-                return;
-            }
-            var isDir = [];
-            //check each file/folder to determine if directory
-            for (var i = 0; i < files.length; i++){
-                isDir[i] = fs.lstatSync(path + "/" + files[i]).isDirectory();
-//                console.log("__________________________________");
-//                console.log(util.inspect(files[i]));
-//                console.log(util.inspect(fs.lstatSync(path + "/" + files[i]), {showHidden: true, depth: null}));
-            }
-            data.files = files;
-            data.isDir = isDir;
-            io.sockets.emit('showfiles3D', data);
-        });
-    });
+    //create file
     socket.on('writeFile', function(data){
         var path = getPath(data.dir);
         if (file_exists(path)){
-            return; //TODO: MSG FAILURE
+            alert("File already exists!");
+            return;
         }
         fs.writeFile(path, data.fileData, undefined, function(err){
             if (err) throw err;

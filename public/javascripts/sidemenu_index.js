@@ -15,12 +15,14 @@ $("#menu-toggle").click(function(e) {
 
 <!-- this will take the id and if you click on it, it will scroll to that section -->
 $(function() {
+    //this grabs ids
     $('a[href*=#]:not([href=#])').click(function() {
         if (location.pathname.replace(/^\//,'') == this.pathname.replace(/^\//,'')
             || location.hostname == this.hostname) {
 
             var target = $(this.hash);
-            target = target.length ? target : $('[name=' + this.hash.slice(1) +']');
+            target = target.length ? target : $('[name=' + this.hash.slice(1) +']')
+            //this scrolls to top by 1000;
             if (target.length) {
                 $('html,body').animate({
                     scrollTop: target.offset().top

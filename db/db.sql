@@ -1,7 +1,8 @@
 /* -------------------------------------------------------------- */
-/* 3Dwe SQL Tables                                           */
-/* on PostgresSQL                                                      */
-/* This file creates tables of 3Dwe project database.          */
+/* 3Dwe SQL Tables                                                */
+/* on PostgresSQL                                                 */
+/* This file creates tables of 3Dwe project database.             */
+/* Made by Wei Lin                                                */
 /* ---------------------------------------------------------------*/
 
 drop table if exists account cascade;

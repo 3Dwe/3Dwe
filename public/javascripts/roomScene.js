@@ -1,10 +1,17 @@
 /**
- * Created by Aibek on 11/26/13.
+ * Created on 11/26/13.
+ * Contributors: Aibek Sarbayev, Swetal Bhatt, Sean Noran, Peng Gao
+ */
+
+/**
+ *  The ROOM module is a shell for room environment, it provides walls, floor and decorations.
+ *
  */
 
 var ROOM = new ROOM();
 
 function ROOM() {
+    // Utilize singleton property
     if ( arguments.callee._singletonInstance )
         return arguments.callee._singletonInstance;
     arguments.callee._singletonInstance = this;
@@ -20,12 +27,6 @@ function ROOM() {
     // variable for black wood texture for the table
     var blackWoodTexture;
 
-    // variable for TV stand
-    var tvstandgroup;
-    var tvstandgroup_active = [];
-    var tvstand;
-    var glasscover;
-    var cabinetcover1, cabinetcover2, cabinetcover3;
     // variable for brown wood texture for the tv stand
     var brownWoodTexture;
 
@@ -41,24 +42,29 @@ function ROOM() {
     // main light
     var light;
 
-    var modelElements = [];
+    var mirrorCamera;
+    var that = this;
+    this.mirrorObj = undefined;
 
+    var modelElements = [];
     this.isLoaded = false;
 
+    // load everything into scene and initalize lightning
     this.load = function ()
     {
         initGeometry();
         initPhotoFrame();
         initShelves();
         initTableGroup();
-        initTvStand();
-        initPiano();
+        initMirror();
+        initTVstandModel();
         initWalls();
         initLights();
 
         this.isLoaded = true;
     }
 
+    // unload everything
     this.unload = function ()
     {
         CORE.disposeSceneElements(modelElements);
@@ -66,28 +72,12 @@ function ROOM() {
         this.isLoaded = false;
     }
 
-    this.onDocumentMouseDown = function(event){
-        event.preventDefault();
-
-        var object;
-        var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
-        CORE.projector.unprojectVector(vector, CORE.camera);
-        var raycaster = new THREE.Raycaster(CORE.camera.position, vector.sub(CORE.camera.position).normalize());
-        var intersects = raycaster.intersectObjects(CORE.intersectObjects);
-
-        // if you clicked on something
-        if (intersects.length > 0) {
-            object = intersects[ 0 ].object;
-        }
-    }
-
+    // initialize floor and textures
     function initGeometry()
     {
-        lightWoodTexture = new THREE.ImageUtils.loadTexture('/images/light-wood.jpg', {}, function () {
-            CORE.renderer.render(CORE.scene, CORE.camera);
-        });
-        lightWoodTexture.wrapS = lightWoodTexture.wrapT = THREE.RepeatWrapping;
-        lightWoodTexture.repeat.set(1, 1);
+        //TODO: Using the microcache is supposed to be faster:
+        CORE.renderer._microCache.getSet('heavy', THREE.ImageUtils.loadTexture('/images/light-wood.jpg'));
+
         var lightWoodMaterial = new THREE.MeshLambertMaterial({map: lightWoodTexture});
 
         blackWoodTexture = new THREE.ImageUtils.loadTexture('/images/black-wood.png', {}, function () {
@@ -114,7 +104,7 @@ function ROOM() {
         CORE.intersectObjects.push(table);
         modelElements.push(table);
 
-        floorTexture = new THREE.ImageUtils.loadTexture('/images/floor-texture.jpg', {}, function () {
+        var floorTexture = new THREE.ImageUtils.loadTexture('/images/floor-texture.jpg', {}, function () {
             CORE.renderer.render(CORE.scene, CORE.camera);
         });
         floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
@@ -131,6 +121,7 @@ function ROOM() {
         modelElements.push(floor);
     }
 
+    // put nice photo frame on the wall
     function initPhotoFrame() {
         // variable for frame
         var pic;
@@ -138,8 +129,8 @@ function ROOM() {
         var picTexture;
 
         picframe = new THREE.Mesh(
-            new THREE.CubeGeometry(100,100,4),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: brownWoodTexture}));          // supply color of the cube
+            new THREE.CubeGeometry(100,100,4),
+            new THREE.MeshLambertMaterial({map: brownWoodTexture}));
         picframe.position.set(0, 250, 500-2);
         picframe.castShadow = true;
         picframe.receiveShadow = true;
@@ -151,10 +142,9 @@ function ROOM() {
         });
         picTexture.wrapS = picTexture.wrapT = THREE.RepeatWrapping;
         picTexture.repeat.set(1, 1);
-        //var lightWoodMaterial = new THREE.MeshLambertMaterial({map: picTexture});
         pic = new THREE.Mesh(
-            new THREE.CubeGeometry(70,70,6),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: picTexture}));          // supply color of the cube
+            new THREE.CubeGeometry(70,70,6),
+            new THREE.MeshLambertMaterial({map: picTexture}));
         pic.position.set(0, 250, 500-2);
         pic.castShadow = true;
         pic.receiveShadow = true;
@@ -163,90 +153,34 @@ function ROOM() {
         modelElements.push(pic);
     }
 
-    function initPiano()
+    // load 3D models for TV stand and plant on top of it
+    function initTVstandModel()
     {
         var loader = new THREE.JSONLoader();
         var callbackModel   = function( geometry, materials ) {
-            var piano = CORE.loadModel( geometry, materials, 0, 0, 0, false );
-            piano.scale.multiplyScalar(60);
-            modelElements.push(piano);
-            CORE.scene.add(piano);
-            //alert("PIANO LOADED");
+            TV_set = CORE.loadModel( geometry, materials, 0, 0, 0, false );
+            TV_set.scale.set(2,1,2);
+            TV_set.rotation.y = Math.PI / 2;
+            TV_set.position.set(0, 35, -465);
+
+            modelElements.push(TV_set);
+            CORE.scene.add(TV_set);
         };
-        loader.load( "/obj/piano.js", callbackModel );
+        loader.load( "/obj/tvstand.js", callbackModel );
+
+        var callbackModel   = function( geometry, materials ) {
+            pot = CORE.loadModel( geometry, materials, 0, 0, 0, false );
+            pot.scale.set(0.05, 0.05, 0.05);
+            pot.rotation.y = Math.PI / 2;
+            pot.position.set(130, 70, -465);
+
+            modelElements.push(pot);
+            CORE.scene.add(pot);
+        };
+        loader.load( "/obj/flower_pot/house_plant.js", callbackModel );
     }
 
-    function initTvStand()
-    {
-        tvstand = new THREE.Mesh(
-            new THREE.CubeGeometry(50,60,300),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: brownWoodTexture}));          // supply color of the cube
-        tvstand.position.set(0, 30, 0);
-        tvstand.castShadow = true;
-        tvstand.receiveShadow = true;
-//        CORE.scene.add(tvstand);
-        //CORE.intersectObjects.push(tvstand);
-        //modelElements.push(tvstand);
-
-        cabinetcover1 = new THREE.Mesh(
-            new THREE.CubeGeometry(5,95,55),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: brownWoodTexture}));          // supply color of the cube
-        cabinetcover1.position.set(26, 30, 100);
-        cabinetcover1.rotation.x = Math.PI/2;
-        cabinetcover1.castShadow = true;
-        cabinetcover1.receiveShadow = true;
-        //CORE.scene.add(cabinetcover1);
-        //CORE.intersectObjects.push(cabinetcover1);
-        //modelElements.push(cabinetcover1);
-
-        cabinetcover2 = new THREE.Mesh(
-            new THREE.CubeGeometry(5,95,55),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: brownWoodTexture}));          // supply color of the cube
-        cabinetcover2.position.set(26, 30, 0);
-        cabinetcover2.rotation.x = Math.PI/2;
-        cabinetcover2.castShadow = true;
-        cabinetcover2.receiveShadow = true;
-        //CORE.scene.add(cabinetcover2);
-        //CORE.intersectObjects.push(cabinetcover2);
-        //modelElements.push(cabinetcover2);
-
-        cabinetcover3 = new THREE.Mesh(
-            new THREE.CubeGeometry(5,95,55),                           // supply size of the cube
-            new THREE.MeshLambertMaterial({map: brownWoodTexture}));          // supply color of the cube
-        cabinetcover3.position.set(26, 30, -100);
-        cabinetcover3.rotation.x = Math.PI/2;
-        cabinetcover3.castShadow = true;
-        cabinetcover3.receiveShadow = true;
-        //CORE.scene.add(cabinetcover3);
-        //CORE.intersectObjects.push(cabinetcover3);
-        //modelElements.push(cabinetcover3);
-
-        glasscover = new THREE.Mesh(
-            new THREE.CubeGeometry(55,2,305),                           // supply size of the cube
-            new THREE.MeshPhongMaterial({color: 0x000000, opacity: 0.2}));          // supply color of the cube
-        glasscover.position.set(0, 62, 2.5);
-        glasscover.castShadow = true;
-        glasscover.receiveShadow = true;
-        //CORE.scene.add(glasscover);
-        //CORE.intersectObjects.push(glasscover);
-        //modelElements.push(glasscover);
-
-        tvstandgroup = new THREE.Object3D();
-        tvstandgroup.rotation.set(0,0,0);
-
-        tvstandgroup_active.push(tvstand, cabinetcover1, cabinetcover2, cabinetcover3);
-        tvstandgroup.add(tvstand);
-        tvstandgroup.add(cabinetcover1);
-        tvstandgroup.add(cabinetcover2);
-        tvstandgroup.add(cabinetcover3);
-
-        tvstandgroup.rotation.set(0, -Math.PI/2, 0);
-        tvstandgroup.position.set(0, 0 , -500+25);
-        CORE.scene.add(tvstandgroup);
-        CORE.intersectObjects.push(tvstandgroup);
-        modelElements.push(tvstandgroup);
-    }
-
+    // put shelves on the wall
     function initShelves()
     {
         shelf1 = new THREE.Mesh(
@@ -298,9 +232,6 @@ function ROOM() {
         coffeetable.position.set(0, 80, 0);
         coffeetable.castShadow = true;
         coffeetable.receiveShadow = true;
-        //CORE.scene.add(coffeetable);
-        //CORE.intersectObjects.push(coffeetable);
-        //modelElements.push(coffeetable);
 
         leg1 = new THREE.Mesh(
             new THREE.CubeGeometry(10,80,10),                           // supply size of the cube
@@ -308,9 +239,6 @@ function ROOM() {
         leg1.position.set(80, 40, -80);
         leg1.castShadow = true;
         leg1.receiveShadow = true;
-        //CORE.scene.add(leg1);
-        //CORE.intersectObjects.push(leg1);
-        //modelElements.push(leg1);
 
         leg2 = new THREE.Mesh(
             new THREE.CubeGeometry(10,80,10),                           // supply size of the cube
@@ -318,9 +246,6 @@ function ROOM() {
         leg2.position.set(-80, 40, 80);
         leg2.castShadow = true;
         leg2.receiveShadow = true;
-        //CORE.scene.add(leg2);
-        //CORE.intersectObjects.push(leg2);
-        //modelElements.push(leg2);
 
         leg3 = new THREE.Mesh(
             new THREE.CubeGeometry(10,80,10),                           // supply size of the cube
@@ -328,9 +253,6 @@ function ROOM() {
         leg3.position.set(80, 40, 80);
         leg3.castShadow = true;
         leg3.receiveShadow = true;
-        //CORE.scene.add(leg3);
-        //CORE.intersectObjects.push(leg3);
-        //modelElements.push(leg3);
 
         leg4 = new THREE.Mesh(
             new THREE.CubeGeometry(10,80,10),                           // supply size of the cube
@@ -338,9 +260,6 @@ function ROOM() {
         leg4.position.set(-80, 40, -80);
         leg4.castShadow = true;
         leg4.receiveShadow = true;
-        //CORE.scene.add(leg4);
-        //CORE.intersectObjects.push(leg4);
-        //modelElements.push(leg4);
 
         tablegroup = new THREE.Object3D();
         tablegroup.rotation.set(0,0,0);
@@ -359,11 +278,12 @@ function ROOM() {
         modelElements.push(tablegroup);
     }
 
+    // initialize walls
     function initWalls()
     {
         // since we will be adding similar walls, we can reuse the geometry and material
         var wallGeometry = new THREE.PlaneGeometry(1000, 500, 10, 10);
-        var wallMaterial = new THREE.MeshPhongMaterial({color: 0x66CCCC});
+        var wallMaterial = new THREE.MeshPhongMaterial({color: 0x33CCCC});
 
         // here is a wall, by default planes are vertical
         wall1 = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -401,11 +321,33 @@ function ROOM() {
         modelElements.push(wall4);
     }
 
+    // put mirror on the wall
+    function initMirror(){
+        var cubeGeom = new THREE.CubeGeometry(100, 250, 10, 1, 1, 1);
+        mirrorCamera = new THREE.CubeCamera( 0.1, 5000, 512 );
+        // mirrorCamera.renderTarget.minFilter = THREE.LinearMipMapLinearFilter;
+        CORE.scene.add( mirrorCamera );
+        var mirrorCubeMaterial = new THREE.MeshBasicMaterial( { envMap: mirrorCamera.renderTarget } );
+        that.mirrorObj = new THREE.Mesh( cubeGeom, mirrorCubeMaterial );
+        that.mirrorObj.position.set(-500,150,0); //place on wall
+        that.mirrorObj.rotation.set(0, Math.PI/2, 0);
+        mirrorCamera.position = that.mirrorObj.position;
+        CORE.scene.add(that.mirrorObj);
+    }
+
+    // update for mirror
+    this.update = function(){
+        that.mirrorObj.visible = false;
+        mirrorCamera.updateCubeMap( CORE.renderer, CORE.scene );
+        that.mirrorObj.visible = true;
+    }
+
+    // initialize lights
     function initLights()
     {
         light = new THREE.SpotLight();
         light.position.set( 0, 800, 0 );
-        light.intensity = 2.0;
+        light.intensity = 4.0;
         light.castShadow = true;
         CORE.scene.add(light);
         modelElements.push(light);

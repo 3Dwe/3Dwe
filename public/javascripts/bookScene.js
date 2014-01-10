@@ -2,11 +2,24 @@
 * Created by Aibek on 11/26/13.
 */
 
+/**
+ *  The BOOK module is experimental, since it uses experimental PDF.js made by Mozilla.
+ *  PDF.js is very inefficient at this moment, but I didn't find any other way to load PDF into WebGL,
+ *  For memory efficiency I didn't include this module while initializing ROOM, but you can press N in
+ *  the ROOM and see the demo version, which shows 3 pages and logic for flipping left and right.
+ *  Due to very high memory demand I'm not providing an ability to read entire book.
+ *  Hopefully Mozilla constantly improves PDF.js, and we can expect optimized version very soon.
+ *
+ */
+
 var BOOK = new BOOK();
 function BOOK() {
+    // Utilize singleton property
     if ( arguments.callee._singletonInstance )
         return arguments.callee._singletonInstance;
     arguments.callee._singletonInstance = this;
+
+    this.isLoaded = false;
 
     // private variables
     var frontCover;
@@ -23,14 +36,12 @@ function BOOK() {
 
     var modelElements = [];
 
-    this.isLoaded = false;
-
+    // load the book module
     this.load = function ()
     {
-        initGeometry();
-        initLights();
         initPDF(pageRight1, currentPage++);
 
+        // set camera above the book.
         CORE.freezeCamera(true);
         CORE.camera.position.set(45, 80, -65);
         CORE.camera.rotation.set(-2.09, 0, -Math.PI);
@@ -38,16 +49,14 @@ function BOOK() {
         this.isLoaded = true;
     }
 
+    // unload the book module
     this.unload = function ()
     {
         CORE.disposeSceneElements(modelElements);
-
-        currentPage = 10;
-
-
         this.isLoaded = false;
     }
 
+    // logic for clicking on the pages
     this.onDocumentMouseDown = function(event){
         event.preventDefault();
 
@@ -57,52 +66,22 @@ function BOOK() {
         var raycaster = new THREE.Raycaster(CORE.camera.position, vector.sub(CORE.camera.position).normalize());
         var intersects = raycaster.intersectObjects(CORE.intersectObjects);
 
-        // if you clicked on something
         if (intersects.length > 0) {
             object = intersects[ 0 ].object;
             if (object === pageRight1)
-            {
-//                initPDF(pageLeft1, currentPage++);
-//                initPDF(pageRight2, currentPage++);
                 flipPage(pageRight1);
-//                flipPage(pageLeft1);
-            }
             if (object === pageLeft1)
-            {
                 flipPage(pageLeft1);
-            }
             if (object === pageRight2)
             {
                 initPDF(pageLeft2, currentPage++);
                 flipPage(pageRight2);
                 flipPage(pageLeft2);
             }
-//            object.material.color.setHex(Math.random() * 0xffffff);
         }
     }
 
-    function initGeometry() {
-        // making a floor - just a plane 500x500, with 10 width/height segments - they affect lightning/reflection I believe
-        floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(500, 500, 10, 10),
-            new THREE.MeshLambertMaterial({color: 0x1103ff}));    // color
-        floor.receiveShadow = true;
-        floor.rotation.x = -Math.PI / 2;                    // make it horizontal, by default planes are vertical
-        floor.position.y = -25;                                   // move it a little, to match bottom of the cube
-        CORE.scene.add(floor);
-        modelElements.push(floor);
-
-    }
-
-    function initLights() {
-        light = new THREE.SpotLight();
-        light.position.set(0, 500, 0);
-        light.intensity = 2.0;
-        light.castShadow = true;
-        CORE.scene.add(light);
-        modelElements.push(light);
-    }
-
+    // loading PDF page
     function loadPage(object, canvas) {
         console.log("Loading page. Book loaded: " + bookLoaded);
         var texture = new THREE.Texture(canvas);
@@ -112,18 +91,15 @@ function BOOK() {
         object.material = canvasMaterial;
 
         if (object === pageRight1)
-        {
             initPDF(pageLeft1, currentPage++);
-        }
         else if (object === pageLeft1)
-        {
             initPDF(pageRight2, currentPage++);
-        }
 
     }
 
+    // logic for putting PDF into the scene
     function initPDF(object, pageNumber) {
-        PDFJS.getDocument('home/pdfs/crackcode.pdf').then(function(pdf) {
+        PDFJS.getDocument('/Home/pdfs/crackcode.pdf').then(function(pdf) {
             // Using promise to fetch the page
             pdf.getPage(pageNumber).then(function(page) {
                 var scale = 3;
@@ -154,6 +130,7 @@ function BOOK() {
         });
     }
 
+    // initializing blank pages, that will hold PDFs
     function initPages(canvas)
     {
         var coverTexture = new THREE.ImageUtils.loadTexture('/images/bookCover_small.jpg', {}, function () {
@@ -164,7 +141,7 @@ function BOOK() {
         var coverMaterial = new THREE.MeshLambertMaterial({map: coverTexture, side: THREE.DoubleSide});
 
         pageRight1 = new THREE.Mesh(
-            new THREE.PlaneGeometry(canvas.width, canvas.height, 1, 1), coverMaterial);            // supply color of the cube
+            new THREE.PlaneGeometry(canvas.width, canvas.height, 1, 1), coverMaterial);
         pageRight1.position.set(0, 12, 0);
         pageRight1.rotation.x = -Math.PI / 2;                    // make it horizontal, by default planes are vertical
         pageRight1.rotation.z = Math.PI;
@@ -210,9 +187,9 @@ function BOOK() {
         modelElements.push(pageLeft2);
 
         bookLoaded = true;
-        console.log("Hey there, switched bookLoaded to: " + bookLoaded);
     }
 
+    // math behind animating page flip
     function flipPage(object) {
         var animation = true;
 

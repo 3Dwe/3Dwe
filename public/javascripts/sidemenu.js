@@ -1,5 +1,6 @@
 /**
- * Created by Wei on 11/2/13.
+ * Created by Sean Noran on 11/2/13.
+ * Contributors: Wei Lin, Peng Gao, Aibek Sarbayev, Swetal Bhatt
  */
 
 
@@ -10,8 +11,6 @@ var specialRequest = "";
 var socketBusy = false;
 
 window.onload = function() {
-//    CORE.socket = io.connect('http://localhost:3000'); //initialize socket io on local server
-
     currentDirectory = $('.h_node').last().attr('id');
 
     //user navigated to a folder
@@ -193,7 +192,7 @@ function loadSongs(directory)
     });
     JUKEBOX.changeSong(JUKEBOX.songs[JUKEBOX.currentSongID]);
     specialRequest = '';
-    navigate('/home');
+    navigate('/Home');
     socketBusy = false;
     console.log(specialRequest);
 }
@@ -215,7 +214,7 @@ function loadPhotos(directory)
     console.log(ALBUM.photos);
     ALBUM.initPhotos();
     specialRequest = '';
-    navigate('/home');
+    navigate('/Home');
     socketBusy = false;
     console.log(specialRequest);
 }
